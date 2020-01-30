@@ -1,0 +1,52 @@
+.graph {
+      display: block;
+      margin: auto;
+     background-color:#fff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: roboto;
+}
+
+#title {
+  margin: 10px 0px;
+  text-transform: uppercase;
+
+}
+
+#description {
+  font-weight: 300;
+  font-size: 16px;
+}
+
+.heading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+svg {
+  font-size: 10px;
+  font-family: roboto;
+}
+
+.tile-text {
+  cursor: default;
+}
+
+
+.tooltip {
+    position: absolute;
+    padding: 10px;
+    font: 12px sans-serif;
+    background: lightsteelblue;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+}

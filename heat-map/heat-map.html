@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <title>Heat Map</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.15.0/d3.min.js" charset="utf-8"></script>
+  <header>
+    <section class="heading">
+      <h1 id="title">Monthly Global Land-Surface Temperature</h1>
+      <h3 id="description">1753 - 2015: base temperature 8.66 ℃</h3>
+    </section>
+  </header>
+
+  <script type="text/javascript">
+  const margin = {
+    top: 70,
+    right: 20,
+    bottom: 30,
+    left: 60
+  },
+  width = 1500 - margin.left - margin.right,
+  height = 600 - margin.top - margin.bottom;
+
+  const tooltip = d3.select("body")
+  .append("div")
+  .attr("class", "tooltip")
+  .attr("id", "tooltip")
+  .style("opacity", 0);
+
+  const svg = d3.select("body")
+  .append("svg")
+  .attr("width", width + margin.right + margin.left + 100)
+  .attr("height", height + margin.top + margin.bottom + 200)
+  .attr("class", "graph")
+  .append("g")
+  .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+  d3.json("https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/global-temperature.json").then(data => {
+    const monthlyVariance = data.monthlyVariance.map(data => {
+      data.month = data.month - 1
+      return data
+    });
+
+    // const yearsDate = monthlyVariance.map(data => data.year);
+    const yearsDate = Array.from(monthlyVariance, (data) => data.year);
+
+    const xMax = d3.max(yearsDate);
+    const xMin = d3.min(yearsDate);
+
+    const xScale = d3.scaleLinear()
+    .domain([xMin - 1, xMax + 1])
+    .range([0, width]);
+
+    const xAxis = d3.axisBottom()
+    .scale(xScale)
+    .ticks(20, "d");
+
+    const xAxisScale = svg.append("g")
+    .call(xAxis)
+    .attr("id", "x-axis")
+    .attr("transform", `translate(0, ${height})`);
+
+    svg
+    .append("g")
+    .append("text")
+    .text("Years")
+    .attr("fill", "black")
+    .style("text-anchor", "middle")
+    .style("font-size", "15px")
+    .attr("transform", `translate(${width/2}, ${height + 50})`);
+
+    const yMin = new Date(1970, 0, 1);
+    const yMax = new Date(1970, 11, 1)
+
+    const yScale = d3.scaleTime()
+    .domain([yMin, yMax])
+    .range([0, height]);
+
+    const yAxis = d3.axisLeft(yScale)
+    .tickFormat(d3.timeFormat("%b"))
+
+    const yAxisScale = svg.append("g")
+    .call(yAxis)
+    .attr("id", "y-axis")
+    .attr("transform", `translate(0, ${-height/24})`)
+    .append("text")
+    .text("Month")
+    .style("text-anchor", "middle")
+    .style("font-size", "15px")
+    .attr("fill", "black")
+    .attr("transform", `translate(-45, ${height/2}) rotate(-90)`);
+
+    const tempScale = d3.scaleLinear()
+    .domain([0, 11])
+    .range([height, 0]);
+
+    // const variance = monthlyVariance.map(data => data.variance);
+    const variance = Array.from(monthlyVariance, (data) => data.variance);
+
+    const varianceMax = d3.max(variance);
+    const varianceMin = d3.min(variance);
+
+    const tempColorScale = d3.scaleSequential(d3.interpolateRdYlBu)
+    .domain([varianceMax, varianceMin])
+
+    const rectangle = svg.append("g")
+    .selectAll("rect")
+    .data(monthlyVariance)
+    .enter()
+    .append("rect")
+    .attr("data-month", (d) => d.month + 1)
+    .attr("data-year", (d) => d.year)
+    .attr("data-temp", (d) => data.baseTemperature + d.variance)
+    .attr("width", (d) => {
+      const length = monthlyVariance.length;
+      const modulo = (length % 12);
+      const value = (length - modulo) / 12;
+      return width/value
+    })
+    .attr("height", (d) => height/12)
+    .attr("x", (d) => xScale(d.year))
+    .attr("y", (d) => height - tempScale(d.month))
+    .attr("transform", `translate(0, ${-height/12})`)
+    .attr("fill", (d) => tempColorScale(d.variance))
+    .on("mouseover", (d) => {
+      const timeFormat = d3.timeFormat("%B")
+      tooltip.style("opacity", 0.9)
+      .style("left", d3.event.pageX + 20 + "px")
+      .style("top", d3.event.pageY - 28 + "px")
+      .attr("data-year", d.year)
+      .html(`${d.year} - ${timeFormat(new Date(1970, d.month, 1))} <br>
+      Average Temperature: ${d3.format("s")(data.baseTemperature + d.variance)} &#8451; <br>
+      Variance: ${d.variance} &#8451;`)
+    })
+    .on("mouseout", (data) => {
+      tooltip.style("opacity", 0);
+    });
+
+    const legendScale = d3.scaleLinear()
+    .domain([data.baseTemperature + varianceMin, data.baseTemperature + varianceMax])
+    .range([0, width/4]);
+
+    const legendAxis = d3.axisBottom()
+    .scale(legendScale);
+
+    const legendAxisScale = svg.append("g")
+    .call(legendAxis)
+    .attr("id", "legend-axis")
+    .attr("transform", `translate(400, ${height + 120})`);
+
+    const legendColorScale = d3.scaleSequential(d3.interpolateRdYlBu)
+    .domain([data.baseTemperature + varianceMax, data.baseTemperature + varianceMin]);
+
+    const legendData = [data.baseTemperature + varianceMin, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, data.baseTemperature + varianceMax];
+
+    const legend = svg.append("g")
+    .attr("id", "legend")
+    .selectAll("rect")
+    .data(legendData).enter()
+    .append("rect")
+    .attr("height", 50)
+    .attr("width", (d, i) => {
+      if (i === legendData.length - 1) {
+        return legendScale(legendData[legendData.length-1]) - legendScale(13)
+      } else if (i === legendData.length - 2) {
+        return legendScale(legendData[i]) - legendScale(legendData[i-1])
+      }
+      return legendScale(legendData[i+1]) - legendScale(legendData[i]);
+    })
+    .attr("x", (d,i) => {
+      if (i === legendData.length - 1) {
+        return legendScale(i + 1)
+      }
+      return legendScale(d)
+    })
+    .attr("transform", `translate(400,${height + 70})`)
+    .attr("fill", (d) => legendColorScale(d))
+  })
+  .catch((err) => console.log(err));
+</script>
+</body>
+</html>

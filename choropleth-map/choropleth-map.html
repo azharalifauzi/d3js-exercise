@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <title>Visualize Data with a Choropleth Map</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.15.0/d3.min.js"></script>
+  <script src="https://d3js.org/topojson.v2.min.js"></script>
+  <section class="heading">
+    <h1 id='title'>United States Educational Attainment</h1>
+    <div id='description'>Percentage of adults age 25 and older with a bachelor's degree or higher (2010-2014)</div>
+  </section>
+  <script type="text/javascript">
+  const margin = {
+    top: 50,
+    right: 20,
+    bottom: 30,
+    left: 60
+  };
+  const width = 1100 - margin.left - margin.right;
+  const height = 780 - margin.top - margin.bottom;
+
+  const tooltip = d3.select("body")
+  .append("div")
+  .attr("class", "tooltip")
+  .attr("id", "tooltip")
+  .style("opacity", 0);
+
+  const svg = d3.select("body")
+  .append("svg")
+  .attr("width", width + margin.right + margin.left)
+  .attr("height", height + margin.top + margin.bottom)
+  .attr("class", "graph")
+  .append("g")
+  .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+  Promise.all([
+    fetch('https://raw.githubusercontent.com/no-stack-dub-sack/testable-projects-fcc/master/src/data/choropleth_map/counties.json'),
+    fetch('https://raw.githubusercontent.com/no-stack-dub-sack/testable-projects-fcc/master/src/data/choropleth_map/for_user_education.json')
+  ]).then(async (res) => {
+    const us = await res[0].json();
+    const edu = await res[1].json();
+
+    const path = d3.geoPath();
+
+    const counties = topojson.feature(us, us.objects.counties).features;
+    const states = topojson.feature(us, us.objects.states).features;
+
+    // const bachelorOrHigher = edu.map((data) => data.bachelorsOrHigher);
+    const bachelorOrHigher = Array.from(edu, (d) => d.bachelorsOrHigher);
+
+    const eduMin = d3.min(bachelorOrHigher);
+    const eduMax = d3.max(bachelorOrHigher);
+
+    const xScale = d3.scaleLinear()
+    .domain([eduMin/100, eduMax/100])
+    .range([600, 860]);
+
+    const tickValues = [eduMin/100];
+
+    for (let i = 0; tickValues.length < 8; i++) {
+      tickValues.push(tickValues[i] + .09)
+    };
+
+    tickValues.push(eduMax/100);
+
+    const xAxis = d3.axisBottom()
+    .scale(xScale)
+    .tickFormat(d3.format(',.0%'))
+    .tickValues(tickValues)
+    .tickSize(16);
+
+    const colorScale = d3.scaleSequential(d3.interpolatePuBu)
+    .domain([eduMin, eduMax]);
+
+    const legendScale = d3.scaleLinear()
+    .domain([eduMin/100, eduMax/100])
+    .range([0, 360])
+
+    const legend = svg.append('g')
+    .selectAll('rect')
+    .data(tickValues)
+    .enter()
+    .append('rect')
+    .attr('height', 10)
+    .attr('width', (d,i) => {
+      const width = tickValues[i+1] - tickValues[i];
+      return legendScale(width)
+    })
+    .attr("x", (d) => xScale(d))
+    .attr("fill", (d) => colorScale(d*100));
+
+    const xAxisScale = svg.append('g')
+    .call(xAxis)
+    .attr("id", "legend")
+    .select("path")
+    .attr("stroke", "none");
+
+    svg.append('g')
+    .attr("class", "county")
+    .selectAll("path")
+    .data(counties)
+    .enter()
+    .append("path")
+    .attr("data-fips", (d) => d.id)
+    .attr("data-education", (d) => {
+      const result = edu.find((obj) => obj.fips === d.id);
+      return result.bachelorsOrHigher;
+    })
+    .attr("d", path)
+    .attr("fill", (d) => {
+      const result = edu.find((obj) => obj.fips === d.id);
+
+      if (result) {
+        return colorScale(result.bachelorsOrHigher);
+      };
+
+      return colorScale(0);
+    })
+    .on("mouseover", (d) => {
+      const result = edu.find((obj) => obj.fips === d.id);
+      tooltip.style("opacity", 0.9)
+      .style("left", d3.event.pageX + 20 + "px")
+      .style("top", d3.event.pageY - 20 + "px")
+      .html(`${result.area_name}, ${result.state}: ${result.bachelorsOrHigher}%`)
+      .attr("data-education", result.bachelorsOrHigher);
+    })
+    .on("mouseout", (d) => {
+      tooltip.style("opacity", 0)
+    });
+
+    svg.append("g")
+    .attr("class", "states")
+    .selectAll("path")
+    .data(states)
+    .enter()
+    .append("path")
+    .attr("d", path)
+    .attr("class", "state");
+  })
+  .catch(err => console.log(err));
+  </script>
+</body>
+</html>

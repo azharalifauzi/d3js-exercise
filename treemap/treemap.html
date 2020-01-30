@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <title>D3 Visualize Data With Treemap Diagram</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.15.0/d3.min.js">
+
+  </script>
+  <section class="heading">
+    <h1 id="title">Video Sales Game</h1>
+    <h3 id="description">Top 100 Most Sold Video Games Grouped by Platform</h3>
+  </section>
+  <script type="text/javascript">
+  const margin = {
+    top: 30,
+    right: 20,
+    bottom: 30,
+    left: 20
+  },
+        width = 1280 - margin.left - margin.right,
+        height = 720 - margin.top - margin.bottom;
+
+  const tooltip = d3.select("body")
+  .append("div")
+  .attr("class", "tooltip")
+  .attr("id", "tooltip")
+  .style("opacity", 0);
+
+  const svg = d3.select("body")
+  .append("svg")
+  .attr("width", width + margin.right + margin.left)
+  .attr("height", height + margin.top + margin.bottom)
+  .attr("class", "graph")
+  .append("g")
+  .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+  d3.json('https://cdn.rawgit.com/freeCodeCamp/testable-projects-fcc/a80ce8f9/src/data/tree_map/video-game-sales-data.json').then((data) => {
+    const root = d3.hierarchy(data)
+    .eachBefore((d) => {
+      d.data.id = (d.parent ? d.parent.data.id + "." : "") + d.data.name
+    })
+    .sum((d) => d.value)
+    .sort((a,b) => b.height - a.height || b.value - a.value);
+
+    const treemap = d3.treemap()
+    .size([width, height])
+    .paddingInner(1);
+
+    treemap(root);
+
+    const colorScaleDomain = root.data.children.map((d) => d.name);
+
+    const colorScale = d3.scaleOrdinal()
+    .domain(data)
+    .range(["#19b9d1", "#eb8038", "orangered", "#edf04d", "green", "#5344b8", "orange", "#e381c9", "#2452ba", '#32a852', "#44cfc8", "#007185", "#70b8ff", "#b3ffbe", "#fff08c", "#008c46", "#9843bf", "#e65076"]);
+
+    const cell = svg.selectAll("g")
+    .data(root.leaves())
+    .enter()
+    .append("g")
+    .attr("class", "group")
+    .attr("transform", (d) => `translate(${d.x0}, ${d.y0})`);
+
+    const tile = cell.append("rect")
+    .attr("width", (d) => d.x1 - d.x0)
+    .attr("height", (d) => d.y1 - d.y0)
+    .attr("fill", (d) => colorScale(d.data.category))
+    .attr("data-name", (d) => d.data.name)
+    .attr("data-value", (d) => d.data.value)
+    .attr("data-category", (d) => d.data.category)
+    .on("mousemove", (d) => {
+      tooltip.style("opacity", 0.9)
+      .style("left", d3.event.pageX + 10 + "px")
+      .style("top", d3.event.pageY - 28 + "px")
+      .html(`name: ${d.data.name} <br>
+        category: ${d.data.category} <br>
+        value: ${d.data.value}`)
+      })
+      .on("mouseout", (d) => {
+        tooltip.style("opacity", 0);
+      });
+
+      cell.append("text")
+      .attr('class', 'tile-text')
+      .selectAll("tspan")
+      .data((d) => d.data.name.split(/(?=[A-Z][^A-Z])/g))
+      .enter().append("tspan")
+      .attr("x", 4)
+      .attr("y", (d, i) => 13 + i * 10)
+      .text((d) => d);
+
+      const legendWidth = 600,
+            LEGEND_OFFSET = 10,
+            LEGEND_RECT_SIZE = 15,
+            LEGEND_H_SPACING = 150,
+            LEGEND_V_SPACING = 10,
+            LEGEND_TEXT_X_OFFSET = 3,
+            LEGEND_TEXT_Y_OFFSET = -4;
+      const legendElemsPerRow = Math.floor(legendWidth/LEGEND_H_SPACING);
+      const categories = [...colorScaleDomain];
+
+
+      const legend = d3.select("body")
+      .append("svg")
+      .attr("id", "legend")
+      .attr("width", legendWidth)
+      .attr("transform", `translate(${legendWidth/2}, 0)`);
+
+      const legendElem = legend
+      .append("g")
+      .attr("transform", `translate(60, ${LEGEND_OFFSET})`)
+      .selectAll("g")
+      .data(categories)
+      .enter()
+      .append("g")
+      .attr("transform", (d,i) => {
+        return `translate(${(i%legendElemsPerRow)*LEGEND_H_SPACING}, ${((Math.floor(i/legendElemsPerRow))*LEGEND_RECT_SIZE + (LEGEND_V_SPACING*(Math.floor(i/legendElemsPerRow))))})`
+      });
+
+      legendElem
+      .append("rect")
+      .attr("width", LEGEND_RECT_SIZE)
+      .attr("height", LEGEND_RECT_SIZE)
+      .attr("fill", (d) => colorScale(d))
+      .attr("class", "legend-item");
+
+      legendElem.append("text")
+      .attr('x', LEGEND_RECT_SIZE + LEGEND_TEXT_X_OFFSET)
+      .attr('y', LEGEND_RECT_SIZE + LEGEND_TEXT_Y_OFFSET)
+      .text((d) => d);
+    });
+  </script>
+</body>
+</html>
